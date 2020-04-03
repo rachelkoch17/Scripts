@@ -1,0 +1,52 @@
+#rename annoying long fasta headers to ID and sequential 1,2,3,4,etc
+perl -pe '$_=">MCA4336_".++$a."\n"if/^>/' input.fna > output.fa
+
+#FASTQ to FASTA: 
+awk '{sub(/^@/,">")} NR%4==1, NR%4==2' filename
+
+
+#Print fast header plus seq on same line:
+awk '/^>/&&NR>1{print "";}{ printf "%s",/^>/ ? $0"\t":$0 }'
+
+e.g.
+Input:
+> sq1
+foofoofoobar
+foofoofoo
+output:
+> sq1 foofoofoobarfoofoofoo
+####
+
+#Join nucleotides below fasta header
+awk '/^>/ {print (NR==1?"":RS)$0;next} {printf "%s",$0}' file
+
+e.g.
+input:
+>Seq1
+acta
+ccgaa
+
+output:
+>Se1
+actaccgaa
+###
+#Purge blank fasta sequences:
+awk 'BEGIN {RS = ">" ; FS = "\n" ; ORS = ""} $2 {print ">"$0}'
+
+#Top blast hit:
+awk '{ if(!x[$1]++) {print $0; bitscore=($14-1)} else { if($14>bitscore) print $0} }'
+
+#delete blanks lines from file:
+perl -ne 'next if m,^$,; print'
+
+#clean up JGI characters following seq ID 
+sed 's/\_[A-Za-z].*//' input.fa > output.fa
+
+# move 'ls' generated list of files to directory
+mv $(<ls_files.txt) Directory/
+
+#Delete spaces
+sed 's/[[:blank:]]//g' input.txt > output.txt
+
+print columns that match in file 2:
+awk 'NR==FNR{a[$1];next}$1 in a' file1 file2
