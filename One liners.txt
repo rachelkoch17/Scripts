@@ -1,6 +1,9 @@
 #rename annoying long fasta headers to ID and sequential 1,2,3,4,etc
 perl -pe '$_=">MCA4336_".++$a."\n"if/^>/' input.fna > output.fa
 
+#reverse complement:
+cat filename | perl -e 'my$s="";while(<>){chomp($_);if($_=~/^>/){if($s=~tr/ATGCatcg/TACGtagc/){$s=reverse($s);print"$s\n"}$s="";my$h=$_;print"$h\n"}else{$s.=$_}}if($s=~tr/ATGCatcg/TACGtagc/){$s=reverse($s);print"$s\n"}'
+
 #FASTQ to FASTA: 
 awk '{sub(/^@/,">")} NR%4==1, NR%4==2' filename
 
