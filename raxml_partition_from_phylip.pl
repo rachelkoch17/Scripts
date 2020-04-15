@@ -14,6 +14,6 @@ while(my $line = <FILE>){
 	my @seq_length = $line =~ /\s\d+/g;
     foreach my $s (@seq_length) {
     $s =~ s/\s//;
-	print "DNA, p1=1-$s\3,2-$s\3\nDNA, p2=3-$s\3";
+	print "DNA, p1=1-$s\\3,2-$s\\3\nDNA, p2=3-$s\\3";
     }    
 }
