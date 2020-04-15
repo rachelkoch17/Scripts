@@ -6,9 +6,9 @@ use strict;use warnings;
 open(FILE, $ARGV[0]) or die "Could not open file";
 while (my $line = <FILE>) {
     chomp ($line);
-    if ( $line =~ m/(Guyne_\d+)/ ){
+    if ( $line =~ m/(Guyne_\d+:\d+\.\d+)/ ){
     my $var = $1;
-    $line =~ s/Guyne_\d+/$var \#1/g;
+    $line =~ s/Guyne_\d+:\d+\.\d+/$var \#1/g;
     print "$line";
 
     }
