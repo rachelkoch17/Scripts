@@ -1,0 +1,155 @@
+Pipeline
+
+
+####run oma####
+#!/bin/sh
+
+#SBATCH --time=9:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=5GB
+#SBATCH --mem-per-cpu=5GB
+#SBATCH --job-name="oma"
+#SBATCH --error="oma_%A_%a.err"
+#SBATCH --output="oma_%A_%a.out"
+export NR_PROCESSES=100
+
+module load python/3.7
+
+cd /work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/MushroomCDS
+
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/bin/
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/darwinlib/
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/DB/
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/hog_bottom_up/
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/lib/
+export PATH=$PATH:/work/herrlab/rkochbach2/OMA2.0/OMA.2.4.1/data/
+
+oma -s
+########
+
+###Run prank on HOGS###
+for x in *.fa ; do prank -d=$x -o=${x} -f=fasta -codon; done
+######
+
+###clean up JGI sequence headers###
+for x in *.fas; do perl -i -p -e "s/\_[A-Za-z].*//g" $x; done
+###
+
+###Run gblocks###
+for x in *.fasta; do Gblocks $x -t=c -b5=h -e=.gbl; done
+
+###delete white space from gblocks###
+sed 's/[[:blank:]]//g'
+###
+
+###convert to phylip###
+for x in *.fna; do perl Fasta2Phylip.pl $x $x.phy; done
+###
+
+###create raxml partition file###
+for x in *.phylip; do perl raxml_partition.pl $x $x.phy; done
+
+###run raxml###
+for file in *.phy; do echo $file ${file}.partition; raxmlHPC -f a -m GTRGAMMA -p 12345 -q ${file}.partition -s $file -x 12345 -n ${file} -N 200; done
+
+###label foreground branch for paml###
+perl branch_label.pl raxml_best_tree.tree
+###
+
+###clean up phylip for PAML###
+for x in *.phylip; do perl -i -p -e "s/\t/   /g" $x; done
+###
+
+#create HOG list with ls * > hogs.txt
+
+###create control file for PAML/codeml H0 and H1###
+codeml_control_rename.sh control_file hog_list
+###
+
+###run paml for H0 and H1 models
+for x in *.ctl; do codeml $x; done
+###
+
+###H0 model branch-label###
+seqfile = * sequence data filename
+  treefile =      * tree structure file name
+   outfile =          * main result file name
+runmode = 0  * 0: user tree;  1: semi-automatic;  2: automatic
+                * 3: StepwiseAddition; (4,5):PerturbationNNI; -2: pairwise
+
+   seqtype = 1  * 1:codons; 2:AAs; 3:codons-->AAs
+ CodonFreq = 2  * 0:1/61 each, 1:F1X4, 2:F3X4, 3:codon table
+
+     ndata = 1 * number of gene alignments to be analysed
+     clock = 0  * 0:no clock, 1:clock; 2:local clock; 3:CombinedAnalysis
+     aaDist = 0   * 0:equal, +:geometric; -:linear, {1-5:G1974,Miyata,c,p,v}
+
+     model = 2  * models for codons: 0:one, 1:b, 2:2 or more dN/dS ratios for branches
+
+   NSsites = 2  * 0:one w;1:neutral;2:selection; 3:discrete;4:freqs;
+                * 5:gamma;6:2gamma;7:beta;8:beta&w;9:beta&gamma;
+                * 10:beta&gamma+1; 11:beta&normal>1; 12:0&2normal>1;
+                * 13:3normal>0
+
+     icode = 0  * 0:universal code; 1:mammalian mt; 2-10:see below
+
+     Mgene = 0   * 0:rates, 1:separate; 2:pi, 3:kappa, 4:all
+    fix_kappa = 0   * 1: kappa fixed, 0: kappa to be estimated
+    kappa = 2   * initial or fixed kappa
+ fix_omega = 1  * 1: omega or omega_1 fixed, 0: estimate
+     omega = 1 * initial or fixed omega, for codons or codon-based AAs
+     getSE = 0       * 0: don't want them, 1: want S.E.s of estimates
+     RateAncestor = 0       * (0,1,2): rates (alpha>0) or ancestral states (1 or 2)
+       Small_Diff = .45e-6  * Default value.
+ cleandata = 1  * remove sites with ambiguity data (1:yes, 0:no)?
+  fix_blength = 0       * 0: ignore, -1: random, 1: initial, 2: fixed
+
+* Genetic codes: 0:universal, 1:mammalian mt., 2:yeast mt., 3:mold mt.,
+* 4: invertebrate mt., 5: ciliate nuclear, 6: echinoderm mt.,
+* 7: euplotid mt., 8: alternative yeast nu. 9: ascidian mt.,
+* 10: blepharisma nu.
+* These codes correspond to transl_table 1 to 11 of GENEBANK.
+###
+
+###H1 model for branch-label###
+seqfile = * sequence data filename
+    treefile =      * tree structure file name
+     outfile =          * main result file name
+
+ runmode = 0  * 0: user tree;  1: semi-automatic;  2: automatic
+                  * 3: StepwiseAddition; (4,5):PerturbationNNI; -2: pairwise
+
+     seqtype = 1  * 1:codons; 2:AAs; 3:codons-->AAs
+   CodonFreq = 2  * 0:1/61 each, 1:F1X4, 2:F3X4, 3:codon table
+
+       ndata = 1 * number of gene alignments to be analysed
+       clock = 0  * 0:no clock, 1:clock; 2:local clock; 3:CombinedAnalysis
+        aaDist = 0   * 0:equal, +:geometric; -:linear, {1-5:G1974,Miyata,c,p,v}
+
+       model = 2  * models for codons: 0:one, 1:b, 2:2 or more dN/dS ratios for branches
+
+     NSsites = 2  * 0:one w;1:neutral;2:selection; 3:discrete;4:freqs;
+                  * 5:gamma;6:2gamma;7:beta;8:beta&w;9:beta&gamma;
+                  * 10:beta&gamma+1; 11:beta&normal>1; 12:0&2normal>1;
+                  * 13:3normal>0
+
+       icode = 0  * 0:universal code; 1:mammalian mt; 2-10:see below
+
+       Mgene = 0   * 0:rates, 1:separate; 2:pi, 3:kappa, 4:all
+      fix_kappa = 0   * 1: kappa fixed, 0: kappa to be estimated
+      kappa = 2   * initial or fixed kappa
+   fix_omega = 0  * 1: omega or omega_1 fixed, 0: estimate
+       omega = 1 * initial or fixed omega, for codons or codon-based AAs
+       getSE = 0       * 0: don't want them, 1: want S.E.s of estimates
+       RateAncestor = 0       * (0,1,2): rates (alpha>0) or ancestral states (1 or 2)
+         Small_Diff = .45e-6  * Default value.
+   cleandata = 1  * remove sites with ambiguity data (1:yes, 0:no)?
+    fix_blength = 0       * 0: ignore, -1: random, 1: initial, 2: fixed
+
+* Genetic codes: 0:universal, 1:mammalian mt., 2:yeast mt., 3:mold mt.,
+* 4: invertebrate mt., 5: ciliate nuclear, 6: echinoderm mt.,
+* 7: euplotid mt., 8: alternative yeast nu. 9: ascidian mt.,
+* 10: blepharisma nu.
+* These codes correspond to transl_table 1 to 11 of GENEBANK.
+###
