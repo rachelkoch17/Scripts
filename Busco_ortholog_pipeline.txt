@@ -1,0 +1,13 @@
+1) run_busco -i $file -o $file -l /work/HCC/BCRF/app_specific/busco/orthodb/v9/basidiomycota_odb9/ -m proteins # run busco on AA gene predictions 
+2) cat full_table*.tsv > all_buscos.txt # cat all busco results from "full_table"
+3) makeblastdb -dbtype nucl -in -parse_seqids # makeblastdb for isolating sequences
+4) cat all_buscos.txt | grep -v "#" | grep "Complete\|Fragmented" > comp_frag.txt # select complete/fragmented orthologs only
+5) cat comp_frag.txt | cut -f1 | sort | uniq -c | sort -nr > counts.tsv # take top number or whatever 
+6) awk 'NR==FNR{a[$1];next}$1 in a' selected_orthologs.txt comp_frag.txt > ortholog_select.txt # select orthologs to be included in phylogenetic tree
+7) ./ortholog_extractor.sh -o OG/ ortholog_select.txt busco_database.fa # extract orthologs from blast db
+8) for x in *.prot; do echo $x; mafft --auto $x > $x.fasta; done # run mafft alignment
+9) for x in *.fasta; do echo $x; Gblocks $x -t=D -b5=h; done # run glocks
+10) for x in *.gbl; do perl -i -lape 's/\s+//sg' $x; done # delete stupid white space in gblocks alignment
+11) for x in *.fasta-gb; do echo $x; sed 's/_.*//' $x > $x.fas; done # delete all sequence info after taxa/sample identifier
+12) fasconcat.pl # (Concatenate all files, Supermatrix + all info, relaxed phylip) Concatenate loci to make super Supermatrix
+13) run raxml
